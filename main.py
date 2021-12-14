@@ -8,7 +8,13 @@ import cv2
 import numpy as np
 import digits_ann as ANN
 
+#el sample generado solo se hizo con 200 iteraciones por epoca, solo para depurar
 ITERATIONS_BY_EPOCH = 20000
+IMAGES = [
+    "./images/numbers0.jpg",
+    "./images/numbers1.png",
+    "./images/numbers2.png"
+]
 
 def inside(r1, r2):
     x1, y1, w1, h1 = r1
@@ -35,43 +41,47 @@ def wrap_digit(rect):
 ann, test_data = ANN.train(ANN.create_ANN(56), ITERATIONS_BY_EPOCH)
 font = cv2.FONT_HERSHEY_SIMPLEX
 
-path = "./images/numbers.jpg"
-img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-bw = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-bw = cv2.GaussianBlur(bw, (7, 7), 0)
-ret, thbw = cv2.threshold(bw, 127, 255, cv2.THRESH_BINARY_INV)
-thbw = cv2.erode(thbw, np.ones((2, 2), np.uint8), iterations = 2)
-cntrs, hier = cv2.findContours(thbw.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+def find_numbers(image_path):
+    path = image_path
+    img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    bw = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    bw = cv2.GaussianBlur(bw, (7, 7), 0)
+    ret, thbw = cv2.threshold(bw, 127, 255, cv2.THRESH_BINARY_INV)
+    thbw = cv2.erode(thbw, np.ones((2, 2), np.uint8), iterations = 2)
+    cntrs, hier = cv2.findContours(thbw.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-rectangles = []
+    rectangles = []
 
-for c in cntrs:
-    r = x, y, w, h = cv2.boundingRect(c)
-    a = cv2.contourArea(c)
-    b = (img.shape[0]-3) * (img.shape[1] - 3)
+    for c in cntrs:
+        r = x, y, w, h = cv2.boundingRect(c)
+        a = cv2.contourArea(c)
+        b = (img.shape[0]-3) * (img.shape[1] - 3)
 
-    is_inside = False
-    for q in rectangles:
-        if inside(r, q):
-            is_inside = True
-            break
-    if not is_inside:
-        if not a == b:
-            rectangles.append(r)
+        is_inside = False
+        for q in rectangles:
+            if inside(r, q):
+                is_inside = True
+                break
+        if not is_inside:
+            if not a == b:
+                rectangles.append(r)
 
-for r in rectangles:
-    x, y, w, h = wrap_digit(r)
-    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-    roi = thbw[y:y+h,x:x+w]
+    for r in rectangles:
+        x, y, w, h = wrap_digit(r)
+        cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        roi = thbw[y:y+h,x:x+w]
 
-    try:
-        digit_class = int(ANN.predict(ann, roi.copy())[0])
-    except:
-        continue
-    
-    cv2.putText(img, "%d" % digit_class, (x, y-1), font, 1, (0, 255, 0))
+        try:
+            digit_class = int(ANN.predict(ann, roi.copy())[0])
+        except:
+            continue
+        
+        cv2.putText(img, "%d" % digit_class, (x, y-1), font, 1, (0, 255, 0))
 
-cv2.imshow("thbw", thbw)
-cv2.imshow("contorous", img)
-cv2.imwrite("sample.jpg", img)
-cv2.waitKey()
+    cv2.imshow("thbw", thbw)
+    cv2.imshow("contorous", img)
+    cv2.imwrite("sample.jpg", img)
+    cv2.waitKey()
+
+for path in IMAGES:
+    find_numbers(path)
